@@ -3,13 +3,6 @@ from scipy import stats
 import glob
 import matplotlib.pyplot as plt
 import TMR_Object as model
-# # better regression model
-# from sklearn import linear_model as lm
-# import statsmodels.api as sm
-#example code
-       # reg=lm.LinearRegression()
-       # reg.fit(time,error)
-       # print reg
 
 # data analysis fcns: percentDiffTest(), stats test for percentage difference, pixel vs strength comparison
 
@@ -253,6 +246,7 @@ def read_one_subject(fname):
 def lregression(data,color='green',fcn='errorStrength(error)'):
     pics= np.unique(data[:,1])
     lminfo=[]
+    pics=[pics[2],pics[12]]
     for pic in pics:
         curr=data[data[:,1] == pic]
         time = curr [:-1,6]
@@ -266,6 +260,7 @@ def lregression(data,color='green',fcn='errorStrength(error)'):
 
         temp=[]
         for i in error:
+            print i
             temp.append(-np.log(1-i))
         error=temp
 
@@ -275,7 +270,7 @@ def lregression(data,color='green',fcn='errorStrength(error)'):
         pret=time[-1]
         prey=error[-1]
         prey_lm=1-np.exp(-m*pret)
-       # print error,m*pret,"  Convert back:",prey_lm
+        print error,m*pret,"  Convert back:",prey_lm
         if fcn == 'errorStrength(error)' and prey_lm >1.0 :
             prey_lm=1.0
             print "Prediction Error", pic
@@ -284,6 +279,8 @@ def lregression(data,color='green',fcn='errorStrength(error)'):
         posty=model.pixels_to_str(curr[-1,5])
         postt=curr[-1,6]
         lminfo.append([pic,m,diff,diff/prey_lm,prey_lm,prey,pret,posty,postt,curr[-1,3]])
+        print "lminfo values:",[pic,m,diff,diff/prey_lm,prey_lm,prey,pret,posty,postt,curr[-1,3]]
+        print "prey_lm, prey:",prey_lm,1-np.exp(-prey)
 
         #column order: 0pic, 1slope, 2diff, 3percentdiff, 4predicted_y,
         # 5actual_y,6pre_t,7post_y,8post_t, 9uncued0/cued1/spindle+cued2
@@ -310,8 +307,8 @@ def lregression(data,color='green',fcn='errorStrength(error)'):
 
     return lminfo
 
-# data=read_one_subject("study_events12/study_02.txt")
-# lregression(data)
+data=read_one_subject("study_events12/study_19.txt")
+lregression(data)
 # print "testing fcn call"
 # lregression(data,fcn='errorPixels(error)')
 # plt.show()
@@ -516,11 +513,12 @@ def fitmodel():
     plt.show()
 
 
-def EEGfit():
-    subnum='02'
-    uncuednum=19
-    cuednum=13
+def EEGfit(cuednum):
+    subnum='19'
+    #uncuednum=13
+    cuednum=cuednum
     f = open("LinearRegression12/lg_"+str(subnum)+".txt")
+    #f = open("LinearRegression12/TMR_lg1.txt")
     d= f.readlines()
     f.close()
     m=[]
@@ -534,9 +532,11 @@ def EEGfit():
     data1cued[:,6]=data1cued[:,6]/60000
     data1cued[:,8]=data1cued[:,8]/60000
     pic28=data1cued[data1cued[:,0]==cuednum][0].tolist() #cued
-    pic19=data1cued[data1cued[:,0]==uncuednum][0].tolist() #uncued
-    # print pic28
-    # print pic19
+    #pic19=data1cued[data1cued[:,0]==uncuednum][0].tolist() #uncued
+
+    pic19 = [1.22222222e+01,  1.55716682e-06,-5.43150874e-01,  -5.82632160e-01,   6.28309800e-01,   1.17146067e+00,9.16018657e+05,  5.12305419e-01 ,  1.47986494e+07 ,  0.00000000e+00]
+    pic19[6]=pic19[6]/60000
+    pic19[8]=pic19[8]/60000
 
     f = open("EEGtime/cueing_"+str(subnum)+".txt")
     d= f.readlines()
@@ -550,15 +550,17 @@ def EEGfit():
     # 4sleep stage,5slow wave phase
     cuedpic28=sub2cued[sub2cued[:,1]==cuednum]
     tmrts=(cuedpic28[:,3]/60000).tolist()
+    print pic28
 
     #predicted pre, multi tmr
     plt.figure()
     (strength,tmr,decay) = model.estimate_multi_tmr(pic19[4],pic19[7],pic28[4],pic28[7],
                     pic19[6],pic19[8], pic28[6],pic28[8],tmrts,graph=True,c1_label='Uncued Multiple TMR',
                     c2_label='Cued Multiple TMR',c2_color='green')
-    print "tmr timings",tmrts,"pre,post acc",pic28[4],pic28[7],"pre, post time",pic28[6],pic28[8],
+    #print "tmr timings",tmrts,"pre,post acc",pic28[4],pic28[7],"pre, post time",pic28[6],pic28[8],
     print "Uncued Predicted y in strength, decay: ",decay
     print "TMR multiple events:", tmr
+    print "Number of cueing",len(tmrts)
 
     #predicted pre, 1tmr
     (strength,tmr,decay) = model.estimate_multi_tmr(pic19[4],pic19[7],pic28[4],pic28[7],
@@ -567,12 +569,11 @@ def EEGfit():
     plt.plot([0,pic19[6]],[0,pic19[4]],color='blue')
     plt.plot([0,pic28[6]],[0,pic28[4]],color='m')
     plt.xlim(-10,300)
-    plt.ylim(0,1)
+    plt.ylim(-0.1,1.3)
 
-    print "Uncued predicted y in strength, decay: ",decay
-    print "1 TMR:", tmr
-    print "Average Initial Strength Predicted:", strength
-    print "Number of cueing",len(tmrts)
+    print "1 TMR:", tmr,"\n"
+   # print "Average Initial Strength Predicted:", strength
+
 
     # plt.title("1 Cueing Event")
     plt.title("Multiple Cueing Events vs 1 cue\n 1 cue assumed at 45 min in nap")
@@ -603,26 +604,30 @@ def EEGfit():
     #plt.show()
     # plt.xlim(15,59)
     # plt.ylim(0.8,1.1)
-    scatterPlot(subnum,uncuednum,cuednum)
-    plt.show()
+    scatterPlot(subnum,cuednum) #uncuednum
+    #plt.show()
 
 
 
 #fitmodel()
 #writeAll()
-EEGfit()
+# for i in [1,3,6,9,10,13,15,16,17,20,22,23,26]:
+#     EEGfit(i)
+EEGfit(3)
+plt.show()
 
 def groupVector():
+    arrayshape = np.arange(-5,300)
+    cuedAlly=arrayshape*1
+    cuedAllt=cuedAlly*1
+    uncuedt = arrayshape*1
+    uncuedy = arrayshape*1
 
-    uncuedAlly=np.arange(-5,300,0.1)
-    uncuedAllt=np.arange(-5,300,0.1)
-    cuedAlly=np.arange(-5,300,0.1)
-    cuedAllt=np.arange(-5,300,0.1)
     #fl=glob.glob("EEGtime/cueing_[0-9][0-9].txt")
-    fl=glob.glob("EEGtime/cueing_19.txt")
+    fl=glob.glob("EEGtime/cueing_[0-9][0-9][0-9].txt")
     for i in fl:
         print i
-        subnum=i[-6:-4]
+        subnum=i[-7:-4]
         f= open(i)
         d= f.readlines()
         f.close()
@@ -630,7 +635,7 @@ def groupVector():
         for i in d:
             line=map(float,i.split())
             m.append(line)
-        sub2cued=np.array(m)
+        subcued=np.array(m)
         # 0subj_num,1pic_num,2sound,3tpassed sinced beginning of all practice session (assume EEG recording start immediately after pre-test),
         # 4sleep stage,5slow wave phase
 
@@ -645,53 +650,30 @@ def groupVector():
         data1cued=np.array(m)
         data1cued[:,6]=data1cued[:,6]/60000
         data1cued[:,8]=data1cued[:,8]/60000
+        raw_uncued=data1cued[data1cued[:,9]==0]
+        data1cued=data1cued[data1cued[:,9]==2]
 
-        uncued=data1cued[data1cued[:,9]==0]
-        data1cued=data1cued[data1cued[:,9]!=0]
-        #
-        # uncued=uncued[uncued[:,0]==2]
-        # data1cued=data1cued[data1cued[:,1]==13]
+        uncued = [1.22222222e+01,  1.55716682e-06,-5.43150874e-01,  -5.82632160e-01,   6.28309800e-01,   1.17146067e+00,9.16018657e+05,  5.12305419e-01 ,  1.47986494e+07 ,  0.00000000e+00]
+        uncued[6]=uncued[6]/60000
+        uncued[8]=uncued[8]/60000
 
     #0pic_num,1m = slope,2diff=predicted - actual_y,3 percentage difference = diff/prey_lm,
     #4prey_lm in strength,5prey in strength, 6pre_t, 7post_y in strength,
     #8post_t, 9cued1/uncued0/spindle+cued1
-        subuncuedy=np.arange(-5,300,0.1)
-        subuncuedt=np.arange(-5,300,0.1)
-        decay = 0
-        for p in uncued[0:1]:
-            print p
-            C=model.MemoryTrace(p[4],p[6])
-            C.find_decay(p[7],p[8])
-            decay+=C.forgetting
-            t,y=C.traceVector()
-            #print p,t,y
-            subuncuedt = np.vstack([subuncuedt,t])
-            subuncuedy = np.vstack([subuncuedy,y])
-        subuncuedt = np.delete(subuncuedt,0,0)
-        subuncuedy = np.delete(subuncuedy,0,0)
-        #print np.shape(subuncuedt),np.shape(subuncuedy)
-        subtvector=np.mean(subuncuedt,axis=0)
-        subyvector=np.mean(subuncuedy,axis=0)
-        #print subtvector,subyvector,np.shape(subtvector),np.shape(subyvector)
-        uncuedAlly = np.vstack([uncuedAlly,subyvector])
-        uncuedAllt = np.vstack([uncuedAllt,subtvector])
 
-        # print subuncuedt[0,100:200]
-        # print "\ny",subuncuedy[0,100:200]
-        decay = float(decay)/np.shape(uncued)[0]
-        print decay
-        subcuedy=np.arange(-5,300,0.1)
-        subcuedt=np.arange(-5,300,0.1)
+        decay = -0.000882163008012 #float(decay)/np.shape(uncued)[0]
+        subcuedy=arrayshape*1
+        subcuedt=arrayshape*1
 
-        for p in data1cued[6:7]:
+        for p in data1cued:
             print p
             C=model.MemoryTrace(p[4],p[6])
             C.forgetting=decay
-            cuedpic28=sub2cued[sub2cued[:,1]==p[0]]
-            tmrts=(cuedpic28[:,3]/60000).tolist()
+            currpic=subcued[subcued[:,1]==p[0]]
+            tmrts=(currpic[:,3]/60000).tolist()
             #print p[0],tmrts
-            tmr =  C.find_multi_tmr2(tmrts,p[8],p[7])
-            t,y=C.traceVector()
+            C.find_multi_tmr2(tmrts,p[8],p[7])
+            t,y=C.traceVector(step=1)
             #print p,t,y
             subcuedt = np.vstack([subcuedt,t])
             subcuedy = np.vstack([subcuedy,y])
@@ -702,52 +684,21 @@ def groupVector():
         cuedAlly = np.vstack([cuedAlly,subyvector])
         cuedAllt = np.vstack([cuedAllt,subtvector])
 
-        # f= open("PlotVectors/y_"+subnum+"uncued.txt",'w')
-        # for i in subuncuedy:
-        #     for j in i:
-        #         f.write(str(j)+"    ")
-        #     f.write("\n")
-        # f.close()
-        #
-        # f= open("PlotVectors/y_"+subnum+"cued.txt",'w')
-        # for i in subcuedy:
-        #     for j in i:
-        #         f.write(str(j)+"    ")
-        #     f.write("\n")
-        # f.close()
-
-
-    uncuedAllt = np.delete(uncuedAllt,0,0)
-    uncuedAlly = np.delete(uncuedAlly,0,0)
-    print "uncuedAllshape",np.shape(uncuedAllt),np.shape(uncuedAlly)
-    subtvector=np.mean(uncuedAllt,axis=0)
-    subyvector=np.mean(uncuedAlly,axis=0)
-    print subtvector,subyvector
     plt.figure()
-    plt.plot(subtvector,subyvector,color='blue',label='uncued') #uncued case, parabola, not idea
+    C=model.MemoryTrace(uncued[4],uncued[6])
+    C.find_decay(uncued[7],uncued[8])
+    C.graph([-5,300],legend='uncued')
 
+    cuedAllt = np.mean(np.delete(cuedAllt,0,0),axis=0)
+    cuedAlly = np.mean(np.delete(cuedAlly,0,0),axis=0)
 
-    cuedAllt = np.delete(cuedAllt,0,0)
-    cuedAlly = np.delete(cuedAlly,0,0)
-    print "cuedAllshape",np.shape(cuedAllt),np.shape(cuedAlly)
-    subtvector=np.mean(cuedAllt,axis=0)
-    subyvector=np.mean(cuedAlly,axis=0)
-    print subtvector,subyvector
+    # uncuedAllt = np.mean(np.delete(uncuedt,0,0),axis=0)
+    # uncuedAlly = np.mean(np.delete(uncuedy,0,0),axis=0)
+    # plt.plot(uncuedAllt,uncuedAlly,color='green',label='Uncued Vector Result')
 
-    plt.plot(subtvector,subyvector,color='red',label='cued')
+    plt.plot(cuedAllt,cuedAlly,color='red',label='cued+spindle')
     plt.legend(loc='best')
     plt.show()
-    #
-    # f= open("PlotVectors/Ally_uncued.txt",'w')
-    # for i in uncuedAlly:
-    #     for j in i:
-    #         f.write(str(j)+"    ")
-    #     f.write("\n")
-    # f.close()
-    #
-    # f= open("PlotVectors/Ally_cued.txt",'w')
-    # for i in cuedAlly:
-    #     for j in i:
-    #         f.write(str(j)+"    ")
-    #     f.write("\n")
-    # f.close()
+
+
+#groupVector()
